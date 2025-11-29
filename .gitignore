@@ -13,7 +13,7 @@ env.bak/
 venv.bak/
 
 # Distribution / Packaging
-dist/
+# dist/
 build/
 *.spec
 
