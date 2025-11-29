@@ -15,7 +15,7 @@ Google Apps Script 웹앱을 기반으로 한 오프라인 Windows 데스크톱 
 ## 설치 및 실행
 
 ### 필수 요구사항
-- Python 3.8 이상
+- Python 3.1x 이상
 - PyQt6
 
 ### 설치 방법
