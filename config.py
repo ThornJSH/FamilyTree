@@ -22,8 +22,17 @@ DANGER_COLOR = "#D0021B"
 FONT_FAMILY = "Noto Sans KR, 맑은 고딕, Malgun Gothic, sans-serif"
 
 # 데이터베이스 설정
+import sys
+
+# 데이터베이스 설정
 DB_NAME = "familytree.db"
-DB_PATH = os.path.join(os.path.dirname(__file__), DB_NAME)
+
+if getattr(sys, 'frozen', False):
+    # 실행 파일로 실행 시 (exe 파일이 있는 위치)
+    DB_PATH = os.path.join(os.path.dirname(sys.executable), DB_NAME)
+else:
+    # 파이썬 스크립트로 실행 시
+    DB_PATH = os.path.join(os.path.dirname(__file__), DB_NAME)
 
 # 애플리케이션 메타데이터
 APP_NAME = "가계도 그리기"
