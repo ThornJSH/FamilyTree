@@ -102,9 +102,9 @@ PyInstaller를 사용하여 독립 실행 파일을 만들 수 있습니다:
 pip install pyinstaller
 
 # 실행 파일 생성
-pyinstaller --onefile --windowed --name="가계도그리기" main.py
+pyinstaller --onefile --windowed --name="FamilyTree" main.py
 
-# 생성된 파일 위치: dist/가계도그리기.exe
+# 생성된 파일 위치: dist/FamilyTree.exe
 ```
 
 ## 기술 스택
@@ -119,7 +119,7 @@ pyinstaller --onefile --windowed --name="가계도그리기" main.py
 
 ## 제작
 
-- 웹앱 원본: https://welfareact.net
+- 웹앱 원본: https://bit.ly/ai4worker
 - 데스크톱 변환: Google Antigravity
 
 ---
