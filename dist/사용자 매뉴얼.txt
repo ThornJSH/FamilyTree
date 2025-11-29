@@ -68,7 +68,7 @@ https://script.google.com/macros/s/AKfycbzMIUaXE6PrIjvNi1Yc30nLcm8sABUmpCv_7VQ1O
 
 - **개발자**: 정수홍(ThorN)
 - **이메일**: jshever@hanmail.net
-- **홈페이지**: welfareact.net / bit.ly/ai4worer
+- **홈페이지**: https://welfareact.net | https://bit.ly/ai4worker
 - **GitHub**: [https://github.com/ThornJSH/FamilyTree](https://github.com/ThornJSH/FamilyTree)
 
 > **참고**: 이 프로그램은 오픈 소스로 제공되며, GitHub 저장소에서 소스 코드를 확인하고 기여할 수 있습니다.
