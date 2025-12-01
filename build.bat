@@ -7,7 +7,7 @@ rmdir /s /q build dist
 del /q *.spec
 
 echo Building Executable...
-pyinstaller --noconsole --onefile --name FamilyTree --clean --add-data "backups;backups" main.py
+pyinstaller --noconsole --onefile --name FamilyTree --clean --add-data "backups;backups" --add-data "resources;resources" main.py
 
 echo Build Complete.
 pause

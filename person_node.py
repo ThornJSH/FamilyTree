@@ -80,16 +80,27 @@ class PersonNode(QGraphicsItem):
         
         # 사망한 경우 X 표시
         if self.person.isDeceased:
-            painter.setPen(QPen(QColor(DANGER_COLOR), 2))
-            size = (NODE_WIDTH if self.person.nodeType == 'pet' else NODE_HEIGHT) * 0.7
-            painter.drawLine(
-                int(-size/2), int(-size/2),
-                int(size/2), int(size/2)
-            )
-            painter.drawLine(
-                int(size/2), int(-size/2),
-                int(-size/2), int(size/2)
-            )
+            # 사망 표시를 더 굵게 (3px)
+            painter.setPen(QPen(QColor(DANGER_COLOR), 3))
+            
+            if self.person.gender == 'male' and self.person.nodeType != 'pet':
+                # 남성: 모서리에서 모서리로 꽉 차게 그리기 (둥근 모서리 고려하여 3px 안쪽으로)
+                inset = 3
+                half_w = NODE_WIDTH / 2 - inset
+                half_h = NODE_HEIGHT / 2 - inset
+                painter.drawLine(int(-half_w), int(-half_h), int(half_w), int(half_h))
+                painter.drawLine(int(half_w), int(-half_h), int(-half_w), int(half_h))
+            else:
+                # 여성/반려동물: 기존대로 (70% 크기)
+                size = (NODE_WIDTH if self.person.nodeType == 'pet' else NODE_HEIGHT) * 0.7
+                painter.drawLine(
+                    int(-size/2), int(-size/2),
+                    int(size/2), int(size/2)
+                )
+                painter.drawLine(
+                    int(size/2), int(-size/2),
+                    int(-size/2), int(size/2)
+                )
     
     def update_text_positions(self):
         """텍스트 위치 업데이트 (중앙 정렬)"""

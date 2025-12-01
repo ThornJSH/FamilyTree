@@ -36,4 +36,5 @@ else:
 
 # 애플리케이션 메타데이터
 APP_NAME = "가계도 그리기"
-APP_VERSION = "1.0.0"
+APP_VERSION = "v1.1"
+RELEASE_DATE = "2025-12-01"

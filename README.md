@@ -15,7 +15,7 @@ Google Apps Script 웹앱을 기반으로 한 오프라인 Windows 데스크톱 
 ## 설치 및 실행
 
 ### 필수 요구사항
-- Python 3.1x 이상
+- Python 3.8 이상
 - PyQt6
 
 ### 설치 방법
@@ -102,9 +102,9 @@ PyInstaller를 사용하여 독립 실행 파일을 만들 수 있습니다:
 pip install pyinstaller
 
 # 실행 파일 생성
-pyinstaller --onefile --windowed --name="FamilyTree" main.py
+pyinstaller --onefile --windowed --name="가계도그리기" main.py
 
-# 생성된 파일 위치: dist/FamilyTree.exe
+# 생성된 파일 위치: dist/가계도그리기.exe
 ```
 
 ## 기술 스택
@@ -119,7 +119,7 @@ pyinstaller --onefile --windowed --name="FamilyTree" main.py
 
 ## 제작
 
-- 웹앱 원본: https://bit.ly/ai4worker
+- 웹앱 원본: https://welfareact.net
 - 데스크톱 변환: Google Antigravity
 
 ---

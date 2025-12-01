@@ -17,7 +17,8 @@ from canvas_widget import CanvasWidget
 from image_export import ImageExporter
 from config import (
     NODE_WIDTH, NODE_HEIGHT, SIBLING_SPACING, LEVEL_SPACING,
-    PRIMARY_COLOR, BACKGROUND_COLOR, APP_NAME, TEXT_COLOR, DANGER_COLOR
+    PRIMARY_COLOR, BACKGROUND_COLOR, APP_NAME, TEXT_COLOR, DANGER_COLOR,
+    APP_VERSION, RELEASE_DATE
 )
 
 
@@ -26,7 +27,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(APP_NAME)
+        self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
         self.setGeometry(100, 100, 1280, 720)
         
         # 데이터
@@ -65,7 +66,7 @@ class MainWindow(QMainWindow):
         self.update_status("정보를 입력하여 가계도를 그려보세요.")
         
         # 푸터 레이블 추가
-        footer_label = QLabel("welfareact.net에서 제작·배포합니다.")
+        footer_label = QLabel(f"Version {APP_VERSION} ({RELEASE_DATE}) | welfareact.net에서 제작·배포합니다.")
         footer_label.setStyleSheet("color: #666; padding: 0 10px;")
         self.status_bar.addPermanentWidget(footer_label)
         
@@ -344,6 +345,22 @@ class MainWindow(QMainWindow):
     
     def apply_styles(self):
         """스타일 적용 - 기본 스타일 사용"""
+        import os
+        import sys
+        
+        # 리소스 경로 설정
+        if getattr(sys, 'frozen', False):
+            # PyInstaller로 패키징된 경우
+            if hasattr(sys, '_MEIPASS'):
+                base_path = sys._MEIPASS.replace('\\', '/')
+            else:
+                base_path = os.path.dirname(sys.executable).replace('\\', '/')
+        else:
+            # 일반 파이썬 스크립트로 실행 시
+            base_path = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
+            
+        cross_icon_path = f"{base_path}/resources/cross.png"
+        
         # 버튼 스타일을 제거하여 시스템 기본값(텍스트 보임)을 사용하도록 함
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -372,7 +389,22 @@ class MainWindow(QMainWindow):
                 border-radius: 4px;
                 background-color: white;
             }}
+            QCheckBox {{
+                spacing: 5px;
+            }}
+            QCheckBox::indicator {{
+                width: 15px;
+                height: 15px;
+                border: 1px solid #ccc;
+                background-color: white;
+                border-radius: 3px;
+            }}
+            QCheckBox::indicator:checked {{
+                image: url({cross_icon_path});
+                border: 1px solid #ccc;
+            }}
         """)
+
 
     def start_new_tree(self):
         """새 가계도 시작"""
@@ -842,7 +874,7 @@ class MainWindow(QMainWindow):
             
             if reply == QMessageBox.StandardButton.Yes:
                 # 저장 후 종료
-                self.save_tree()
+                self.save_current_tree()
                 self.db.close()
                 event.accept()
             elif reply == QMessageBox.StandardButton.No:
