@@ -58,3 +58,35 @@ class Person:
             multipleBirthGroupId=data.get('multipleBirthGroupId'),
             nextIdenticalSiblingId=data.get('nextIdenticalSiblingId')
         )
+
+
+@dataclass
+class RelationshipLine:
+    """감정 관계선 데이터 클래스"""
+    id: str
+    lineType: str  # intimate-one, intimate-two, distant-one, distant-two, conflict-one, conflict-two
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'lineType': self.lineType,
+            'x1': self.x1,
+            'y1': self.y1,
+            'x2': self.x2,
+            'y2': self.y2
+        }
+
+    @staticmethod
+    def from_dict(data):
+        return RelationshipLine(
+            id=data['id'],
+            lineType=data['lineType'],
+            x1=data['x1'],
+            y1=data['y1'],
+            x2=data['x2'],
+            y2=data['y2']
+        )

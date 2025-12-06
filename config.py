@@ -18,6 +18,11 @@ TEXT_COLOR = "#4A4A4A"
 BORDER_COLOR = "#E0E6ED"
 DANGER_COLOR = "#D0021B"
 
+# 감정 관계선 색상
+INTIMATE_COLOR = "#4A90E2"  # 파랑 (친밀)
+DISTANT_COLOR = "#2ECC71"   # 초록 (소원)
+CONFLICT_COLOR = "#9B59B6"  # 보라 (갈등)
+
 # 폰트 설정
 FONT_FAMILY = "Noto Sans KR, 맑은 고딕, Malgun Gothic, sans-serif"
 
@@ -36,4 +41,5 @@ else:
 
 # 애플리케이션 메타데이터
 APP_NAME = "가계도 그리기"
-APP_VERSION = "1.0.0"
+APP_VERSION = "v1.3 beta"
+RELEASE_DATE = "2025-12-06"

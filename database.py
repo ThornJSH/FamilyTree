@@ -54,6 +54,21 @@ class Database:
                 FOREIGN KEY (tree_name) REFERENCES FamilyTrees(tree_name) ON DELETE CASCADE
             )
         ''')
+
+        # 관계선 데이터 테이블
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS RelationshipLines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tree_name TEXT NOT NULL,
+                line_id TEXT NOT NULL,
+                line_type TEXT NOT NULL,
+                x1 REAL NOT NULL,
+                y1 REAL NOT NULL,
+                x2 REAL NOT NULL,
+                y2 REAL NOT NULL,
+                FOREIGN KEY (tree_name) REFERENCES FamilyTrees(tree_name) ON DELETE CASCADE
+            )
+        ''')
         
         self.conn.commit()
     
@@ -62,7 +77,7 @@ class Database:
         self.cursor.execute('SELECT tree_name FROM FamilyTrees ORDER BY tree_name')
         return [row['tree_name'] for row in self.cursor.fetchall()]
     
-    def save_tree(self, tree_name: str, people: List[Person]):
+    def save_tree(self, tree_name: str, people: List[Person], relationship_lines: List = None):
         """가계도 저장 (덮어쓰기)"""
         try:
             # 가계도 메타데이터 삽입/갱신
@@ -70,8 +85,9 @@ class Database:
                 INSERT OR IGNORE INTO FamilyTrees (tree_name) VALUES (?)
             ''', (tree_name,))
             
-            # 기존 인물 데이터 삭제
+            # 기존 데이터 삭제
             self.cursor.execute('DELETE FROM People WHERE tree_name = ?', (tree_name,))
+            self.cursor.execute('DELETE FROM RelationshipLines WHERE tree_name = ?', (tree_name,))
             
             # 새 인물 데이터 삽입
             for person in people:
@@ -87,6 +103,32 @@ class Database:
                     person.parentId, person.spouseId, person.relationshipType,
                     person.multipleBirthGroupId, person.nextIdenticalSiblingId
                 ))
+
+            # 새 관계선 데이터 삽입
+            if relationship_lines:
+                from models import RelationshipLine
+                for line in relationship_lines:
+                    # 객체인지 딕셔너리인지 확인
+                    if isinstance(line, dict):
+                         # 딕셔너리인 경우 (undo/redo 스택 등에서 올 때)
+                        self.cursor.execute('''
+                            INSERT INTO RelationshipLines (
+                                tree_name, line_id, line_type, x1, y1, x2, y2
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            tree_name, line['id'], line['lineType'],
+                            line['x1'], line['y1'], line['x2'], line['y2']
+                        ))
+                    else:
+                        # 객체인 경우
+                        self.cursor.execute('''
+                            INSERT INTO RelationshipLines (
+                                tree_name, line_id, line_type, x1, y1, x2, y2
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            tree_name, line.id, line.lineType,
+                            line.x1, line.y1, line.x2, line.y2
+                        ))
             
             self.conn.commit()
             return f'"{tree_name}" 가계도가 성공적으로 저장되었습니다.'
@@ -94,8 +136,9 @@ class Database:
             self.conn.rollback()
             return f'저장 중 오류가 발생했습니다: {str(e)}'
     
-    def load_tree(self, tree_name: str) -> List[Person]:
-        """가계도 불러오기"""
+    def load_tree(self, tree_name: str):
+        """가계도 불러오기 (인물 목록, 관계선 목록 반환)"""
+        # 인물 로드
         self.cursor.execute('''
             SELECT * FROM People WHERE tree_name = ?
         ''', (tree_name,))
@@ -118,14 +161,33 @@ class Database:
                 nextIdenticalSiblingId=row['next_identical_sibling_id']
             )
             people.append(person)
+
+        # 관계선 로드
+        self.cursor.execute('''
+            SELECT * FROM RelationshipLines WHERE tree_name = ?
+        ''', (tree_name,))
         
-        return people
+        relationship_lines = []
+        from models import RelationshipLine
+        for row in self.cursor.fetchall():
+            line = RelationshipLine(
+                id=row['line_id'],
+                lineType=row['line_type'],
+                x1=row['x1'],
+                y1=row['y1'],
+                x2=row['x2'],
+                y2=row['y2']
+            )
+            relationship_lines.append(line)
+        
+        return people, relationship_lines
     
     def delete_tree(self, tree_name: str) -> str:
         """가계도 삭제"""
         try:
             # People 테이블에서 먼저 삭제 (외래키 제약조건)
             self.cursor.execute('DELETE FROM People WHERE tree_name = ?', (tree_name,))
+            self.cursor.execute('DELETE FROM RelationshipLines WHERE tree_name = ?', (tree_name,))
             
             # FamilyTrees 테이블에서 삭제
             self.cursor.execute('DELETE FROM FamilyTrees WHERE tree_name = ?', (tree_name,))
