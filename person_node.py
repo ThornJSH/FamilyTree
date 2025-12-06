@@ -11,9 +11,10 @@ from config import NODE_WIDTH, NODE_HEIGHT, TEXT_COLOR, PANEL_BG_COLOR, DANGER_C
 class PersonNode(QGraphicsItem):
     """가계도의 한 인물을 나타내는 그래픽 노드"""
     
-    def __init__(self, person: Person):
+    def __init__(self, person: Person, is_center: bool = False):
         super().__init__()
         self.person = person
+        self.is_center = is_center
         # self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
@@ -69,14 +70,39 @@ class PersonNode(QGraphicsItem):
             path.lineTo(-size, 0)
             path.closeSubpath()
             painter.drawPath(path)
+            
+            # 중심인물인 경우 내부 도형 그리기 (반려동물이 중심인물일 경우는 드물지만 처리)
+            if self.is_center:
+                inner_path = QPainterPath()
+                inner_size = size - 6  # 6px 안쪽
+                inner_path.moveTo(0, -inner_size)
+                inner_path.lineTo(inner_size, 0)
+                inner_path.lineTo(0, inner_size)
+                inner_path.lineTo(-inner_size, 0)
+                inner_path.closeSubpath()
+                painter.drawPath(inner_path)
+                
         elif self.person.gender == 'male':
             # 남성: 둥근 모서리 사각형
             rect = QRectF(-NODE_WIDTH/2, -NODE_HEIGHT/2, NODE_WIDTH, NODE_HEIGHT)
             painter.drawRoundedRect(rect, 5, 5)
+            
+            # 중심인물인 경우 내부 사각형 그리기
+            if self.is_center:
+                inset = 6
+                inner_rect = rect.adjusted(inset, inset, -inset, -inset)
+                painter.drawRoundedRect(inner_rect, 3, 3)
+                
         else:
             # 여성: 원형
             rect = QRectF(-NODE_HEIGHT/2, -NODE_HEIGHT/2, NODE_HEIGHT, NODE_HEIGHT)
             painter.drawEllipse(rect)
+            
+            # 중심인물인 경우 내부 원 그리기
+            if self.is_center:
+                inset = 6
+                inner_rect = rect.adjusted(inset, inset, -inset, -inset)
+                painter.drawEllipse(inner_rect)
         
         # 사망한 경우 X 표시
         if self.person.isDeceased:

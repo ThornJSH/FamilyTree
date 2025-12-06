@@ -9,8 +9,8 @@ from PyQt6.QtWidgets import (
     QMessageBox, QFileDialog, QFrame, QScrollArea, QGroupBox, QRadioButton,
     QButtonGroup, QStatusBar
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QTimer, QPointF
 from models import Person
 from database import Database
 from canvas_widget import CanvasWidget
@@ -33,7 +33,9 @@ class MainWindow(QMainWindow):
         # 데이터
         self.db = Database()
         self.people = []
+        self.relationship_lines = []
         self.history_stack = []
+        self.redo_stack = []
         self.current_tree_name = None
         self.initial_client = None
         
@@ -309,6 +311,13 @@ class MainWindow(QMainWindow):
         undo_btn.clicked.connect(self.undo_last_action)
         controls_layout.addWidget(undo_btn)
         
+        redo_btn = QPushButton("↷ 다시실행")
+        redo_btn.setObjectName("secondaryButton")
+        redo_btn.setMinimumHeight(30)
+        redo_btn.setToolTip("취소한 작업 다시 실행")
+        redo_btn.clicked.connect(self.redo_last_action)
+        controls_layout.addWidget(redo_btn)
+        
         reset_btn = QPushButton("🗑 초기화")
         reset_btn.setObjectName("secondaryButton")
         reset_btn.setMinimumHeight(30)
@@ -333,6 +342,34 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(save_png_btn)
         
         canvas_layout.addWidget(controls)
+
+        # 관계선 툴바
+        line_toolbar = QFrame()
+        line_toolbar.setStyleSheet("background-color: #f8f9fa; border-bottom: 1px solid #E0E6ED;")
+        line_layout = QHBoxLayout(line_toolbar)
+        line_layout.setContentsMargins(10, 5, 10, 5)
+        line_layout.setSpacing(10)
+        
+        line_layout.addWidget(QLabel("감정 관계선:"))
+        
+        # 관계선 버튼 생성
+        line_types = [
+            ('intimate-one', '친밀(단방향)'), ('intimate-two', '친밀(양방향)'),
+            ('distant-one', '소원(단방향)'), ('distant-two', '소원(양방향)'),
+            ('conflict-one', '갈등(단방향)'), ('conflict-two', '갈등(양방향)')
+        ]
+        
+        for l_type, tooltip in line_types:
+            btn = QPushButton()
+            btn.setFixedSize(80, 30)
+            btn.setToolTip(tooltip)
+            btn.setIcon(self.create_line_icon(l_type, width=70, height=20))
+            btn.setIconSize(btn.size())
+            btn.clicked.connect(lambda checked, t=l_type: self.on_line_btn_clicked(t))
+            line_layout.addWidget(btn)
+            
+        line_layout.addStretch()
+        canvas_layout.addWidget(line_toolbar)
         
         # 캔버스
         # 캔버스
@@ -443,7 +480,8 @@ class MainWindow(QMainWindow):
             self.add_person_group.setVisible(True)
             self.update_center_person_select()
             
-            self.canvas.draw_tree(self.people)
+            center_id = self.initial_client.id if self.initial_client else None
+            self.canvas.draw_tree(self.people, center_id)
             
         except Exception as e:
             import traceback
@@ -467,7 +505,8 @@ class MainWindow(QMainWindow):
             # UI 업데이트
             self.add_person_group.setVisible(True)
             self.update_center_person_select()
-            self.canvas.draw_tree(self.people)
+            center_id = self.initial_client.id if self.initial_client else None
+            self.canvas.draw_tree(self.people, center_id)
             
         except Exception as e:
             import traceback
@@ -505,7 +544,8 @@ class MainWindow(QMainWindow):
         self.setup_relationship(new_person, center_person, relationship_type)
         
         self.people.append(new_person)
-        self.canvas.draw_tree(self.people)
+        center_id = self.initial_client.id if self.initial_client else None
+        self.canvas.draw_tree(self.people, center_id)
         self.update_center_person_select()
         
         # 입력 필드 초기화
@@ -552,7 +592,8 @@ class MainWindow(QMainWindow):
         person.gender = "male" if self.edit_gender_select.currentText() == "남자" else "female"
         person.isDeceased = self.edit_deceased_checkbox.isChecked()
         
-        self.canvas.draw_tree(self.people)
+        center_id = self.initial_client.id if self.initial_client else None
+        self.canvas.draw_tree(self.people, center_id)
         self.update_center_person_select()
         self.update_status(f"{name}님의 정보를 수정했습니다.")
         
@@ -589,7 +630,8 @@ class MainWindow(QMainWindow):
             
             # 3. 상태 저장 및 UI 업데이트
             self.save_state_for_undo()
-            self.canvas.draw_tree(self.people)
+            center_id = self.initial_client.id if self.initial_client else None
+            self.canvas.draw_tree(self.people, center_id)
             self.update_center_person_select()
             self.edit_person_group.setVisible(False)
             self.add_person_group.setVisible(True)
@@ -703,11 +745,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "저장 오류", "저장할 가계도의 이름이 없습니다. 새로 시작하거나 기존 가계도를 불러오세요.")
             return
         
-        if not self.people:
+        if not self.people and not self.relationship_lines:
             QMessageBox.warning(self, "저장 오류", "저장할 내용이 없습니다.")
             return
         
-        result = self.db.save_tree(self.current_tree_name, self.people)
+        result = self.db.save_tree(self.current_tree_name, self.people, self.relationship_lines)
         QMessageBox.information(self, "저장", result)
         self.load_tree_list()
     
@@ -719,10 +761,11 @@ class MainWindow(QMainWindow):
             return
         
         tree_name = current_item.text()
-        people = self.db.load_tree(tree_name)
+        people, relationship_lines = self.db.load_tree(tree_name)
         
         self.reset_state()
         self.people = people
+        self.relationship_lines = relationship_lines
         self.current_tree_name = tree_name
         self.tree_name_input.setText(tree_name)
         
@@ -731,9 +774,11 @@ class MainWindow(QMainWindow):
             self.initial_client = next((p for p in self.people if not p.parentId and not p.spouseId), self.people[0])
         
         self.save_state_for_undo()
+        self.save_state_for_undo()
         self.add_person_group.setVisible(True)
         self.update_center_person_select()
-        self.canvas.draw_tree(self.people)
+        center_id = self.initial_client.id if self.initial_client else None
+        self.canvas.draw_tree(self.people, center_id, self.relationship_lines)
         self.update_status(f'"{self.current_tree_name}" 가계도를 불러왔습니다.')
     
     def delete_selected_tree(self):
@@ -781,14 +826,63 @@ class MainWindow(QMainWindow):
     def undo_last_action(self):
         """마지막 작업 취소"""
         if len(self.history_stack) > 1:
-            self.history_stack.pop()
-            last_state = self.history_stack[-1]
-            self.people = [Person.from_dict(p) for p in last_state]
-            self.canvas.draw_tree(self.people)
+            # 1. 현재 화면의 상태(Live)를 Redo 스택에 저장
+            current_live_state = {
+                'people': [p.to_dict() for p in self.people],
+                'lines': [l.to_dict() for l in self.relationship_lines]
+            }
+            self.redo_stack.append(current_live_state)
+            
+            # 2. History 스택에서 가장 최근 상태(방금 취소하려는 작업의 시작 전 상태)를 가져옴
+            previous_state = self.history_stack.pop()
+            
+            # 3. 상태 복원
+            self.people = [Person.from_dict(p) for p in previous_state['people']]
+            from models import RelationshipLine
+            self.relationship_lines = [RelationshipLine.from_dict(l) for l in previous_state['lines']]
+            
+            # initial_client 복구 시도 (ID 기반)
+            if self.initial_client:
+                # 현재 initial_client ID와 일치하는 새 객체 찾기
+                found = next((p for p in self.people if p.id == self.initial_client.id), None)
+                if found:
+                    self.initial_client = found
+            
+            center_id = self.initial_client.id if self.initial_client else None
+            self.canvas.draw_tree(self.people, center_id, self.relationship_lines)
             self.update_center_person_select()
             self.update_status("마지막 작업을 취소했습니다.")
         else:
             self.update_status("더 이상 취소할 작업이 없습니다.")
+            
+    def redo_last_action(self):
+        """취소한 작업 다시 실행"""
+        if self.redo_stack:
+            # 1. 현재 상태(Undo된 상태)를 History 스택에 다시 저장
+            current_live_state = {
+                'people': [p.to_dict() for p in self.people],
+                'lines': [l.to_dict() for l in self.relationship_lines]
+            }
+            self.history_stack.append(current_live_state)
+            
+            # 2. Redo 스택에서 다음 상태 가져와서 적용
+            next_state = self.redo_stack.pop()
+            self.people = [Person.from_dict(p) for p in next_state['people']]
+            from models import RelationshipLine
+            self.relationship_lines = [RelationshipLine.from_dict(l) for l in next_state['lines']]
+            
+            # initial_client 복구 시도
+            if self.initial_client:
+                 found = next((p for p in self.people if p.id == self.initial_client.id), None)
+                 if found:
+                     self.initial_client = found
+            
+            center_id = self.initial_client.id if self.initial_client else None
+            self.canvas.draw_tree(self.people, center_id, self.relationship_lines)
+            self.update_center_person_select()
+            self.update_status("작업을 다시 실행했습니다.")
+        else:
+            self.update_status("다시 실행할 작업이 없습니다.")
     
     def save_image(self, format: str):
         """이미지로 저장"""
@@ -836,13 +930,21 @@ class MainWindow(QMainWindow):
     def reset_state(self):
         """상태 초기화"""
         self.people = []
+        self.relationship_lines = []
         self.history_stack = []
+        self.redo_stack = []
         self.current_tree_name = None
         self.initial_client = None
     
     def save_state_for_undo(self):
         """실행 취소를 위한 상태 저장"""
-        state = [p.to_dict() for p in self.people]
+        # 새로운 작업이 발생하면 redo 스택 초기화
+        self.redo_stack.clear()
+        
+        state = {
+            'people': [p.to_dict() for p in self.people],
+            'lines': [l.to_dict() for l in self.relationship_lines]
+        }
         self.history_stack.append(state)
         if len(self.history_stack) > 20:
             self.history_stack.pop(0)
@@ -850,12 +952,111 @@ class MainWindow(QMainWindow):
     def update_status(self, message: str):
         """상태 표시줄 업데이트"""
         self.status_bar.showMessage(message)
+        
+    def create_line_icon(self, line_type: str, width: int = 40, height: int = 20):
+        """관계선 아이콘 생성"""
+        from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor, QPainterPath, QBrush
+        
+        pixmap = QPixmap(width, height)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # 색상 및 스타일 결정
+        from config import INTIMATE_COLOR, DISTANT_COLOR, CONFLICT_COLOR
+        
+        color = QColor(INTIMATE_COLOR)
+        if 'distant' in line_type:
+            color = QColor(DISTANT_COLOR)
+        elif 'conflict' in line_type:
+            color = QColor(CONFLICT_COLOR)
+            
+        pen = QPen(color, 2)
+        
+        y = height / 2
+        path = QPainterPath()
+        path.moveTo(0, y)
+        
+        if 'distant' in line_type:
+            pen.setStyle(Qt.PenStyle.DashLine)
+            path.lineTo(width, y)
+        elif 'conflict' in line_type:
+            # 지그재그 (양옆 여백 확보)
+            padding = 10
+            zigzag_width = width - (padding * 2)
+            segment_width = zigzag_width / 8  # 4개의 파동 (더 촘촘하게)
+            amplitude = 4  # 높이 축소
+            
+            # 시작 여백
+            path.lineTo(padding, y)
+             
+            # 지그재그 구간
+            for i in range(1, 9):
+                x_pos = padding + (i * segment_width)
+                if i % 2 == 1:
+                    path.lineTo(x_pos, y - amplitude)
+                else:
+                    path.lineTo(x_pos, y + amplitude)
+            
+            # 끝 여백
+            path.lineTo(width, y)
+        else:
+             path.lineTo(width, y)
+             
+        painter.setPen(pen)
+        painter.drawPath(path)
+        
+        # 화살표 그리기
+        arrow_size = 8  # 화살표 크기 증가
+        # 오른쪽 화살표
+        painter.setBrush(QBrush(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawPolygon([
+            QPointF(width, y),
+            QPointF(width - arrow_size, y - arrow_size/2),
+            QPointF(width - arrow_size, y + arrow_size/2)
+        ])
+        
+        # 양방향인 경우 왼쪽 화살표
+        if 'two' in line_type:
+            painter.drawPolygon([
+                QPointF(0, y),
+                QPointF(arrow_size, y - arrow_size/2),
+                QPointF(arrow_size, y + arrow_size/2)
+            ])
+            
+        painter.end()
+        return QIcon(pixmap)
+
+    def on_line_btn_clicked(self, line_type):
+        """관계선 생성 버튼 클릭"""
+        if not self.people and not self.relationship_lines:
+             # 사람이 없어도 선은 그릴 수 있게 할지 고민 -> 그릴 수 있게 함 (빈 캔버스)
+             pass
+        
+        self.save_state_for_undo()
+        
+        line = self.canvas.create_relationship_line(line_type)
+        self.relationship_lines.append(line)
+        self.canvas.draw_emotional_relationship_lines([line])
+        self.update_status("감정 관계선을 추가했습니다.")
     
     def keyPressEvent(self, event):
         """키 입력 이벤트"""
         if event.key() == Qt.Key.Key_Delete:
-            # Delete 키로 선택된 노드 삭제
-            self.delete_selected_person()
+            # 1. 선택된 인물 삭제 시도
+            if hasattr(self, 'selected_person_id') and self.selected_person_id:
+                self.delete_selected_person()
+                return
+
+            # 2. 선택된 관계선 삭제 시도
+            deleted_line_id = self.canvas.delete_selected_relationship_line()
+            if deleted_line_id:
+                self.save_state_for_undo()
+                self.relationship_lines = [l for l in self.relationship_lines if l.id != deleted_line_id]
+                self.update_status("감정 관계선을 삭제했습니다.")
+                return
         
         super().keyPressEvent(event)
     

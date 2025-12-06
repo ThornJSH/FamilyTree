@@ -170,7 +170,7 @@ class CanvasWidget(QGraphicsView):
         else:
             super().mouseReleaseEvent(event)
     
-    def draw_tree(self, people: List[Person]):
+    def draw_tree(self, people: List[Person], center_person_id: str = None, relationship_lines: List = None):
         """전체 가계도 그리기"""
         self.people = people
         # self.scene.clear()  # 잠재적 크래시 원인
@@ -179,18 +179,23 @@ class CanvasWidget(QGraphicsView):
         self.node_map.clear()
         self.line_items.clear()
         
-        if not people:
+        if not people and not relationship_lines:
             return
         
         # 각 인물 노드 먼저 그리기
         for person in people:
-            node = PersonNode(person)
+            is_center = (center_person_id is not None and person.id == center_person_id)
+            node = PersonNode(person, is_center=is_center)
             node.setPos(person.x, person.y)
             self.scene.addItem(node)
             self.node_map[person.id] = node
         
         # 관계선 그리기 (노드 뒤에 표시)
         self.draw_relationship_lines()
+        
+        # 감정 관계선 그리기 (노드 위에 표시)
+        if relationship_lines:
+            self.draw_emotional_relationship_lines(relationship_lines)
         
         # 씬 크기 조정
         self.scene.setSceneRect(self.scene.itemsBoundingRect().adjusted(-100, -100, 100, 100))
@@ -407,4 +412,56 @@ class CanvasWidget(QGraphicsView):
                 return item.person
         return None
     
-    # delete_selected_person 메서드 제거됨 (Main Window로 이동)
+    # --- 감정 관계선 (Emotional Relationship Lines) ---
+    
+    def create_relationship_line(self, line_type: str):
+        """새로운 감정 관계선 생성"""
+        import time
+        from models import RelationshipLine
+        
+        # 화면 중앙 좌표 계산 (초기 위치 수정)
+        # 이미지에 겹치지 않게 왼쪽 상단이나 빈 공간으로 배치
+        # 뷰포트의 좌측 상단 기준으로 약간 떨어진 곳
+        top_left = self.mapToScene(self.viewport().rect().topLeft())
+        start_x = top_left.x() + 100
+        start_y = top_left.y() + 100
+        
+        # 기본 길이 200px
+        line = RelationshipLine(
+            id=f"line_{int(time.time() * 1000)}",
+            lineType=line_type,
+            x1=start_x,
+            y1=start_y,
+            x2=start_x + 200,
+            y2=start_y
+        )
+        
+        # 리스트에 추가 (draw_tree에서 그려짐)
+        # 하지만 draw_tree는 전체 재그리기이므로, 여기서는 아이템만 추가하고 관리
+        # main.window의 save_state_for_undo를 위해선 relationship_lines 리스트 관리가 필요하지만
+        # 현재 구조상 main.window.people 처럼 main.window.relationship_lines가 있어야 함.
+        # CanvasWidget에서 직접 데이터를 관리하기보다 Main Window에서 관리하고 draw_tree로 넘겨주는 것이 일관성 있음.
+        # 그러나 편의상 CanvasWidget에서 시그널을 보내거나, Main Window에서 이 메소드를 호출한 뒤 리스트에 추가하도록 함.
+        
+        return line
+
+    def draw_emotional_relationship_lines(self, lines: List[object]):
+        """감정 관계선 그리기"""
+        from relationship_line_item import RelationshipLineItem
+        
+        for line in lines:
+            item = RelationshipLineItem(line)
+            self.scene.addItem(item)
+            self.line_items.append(item)
+
+    def delete_selected_relationship_line(self) -> Optional[str]:
+        """선택된 관계선 삭제 (ID 반환)"""
+        from relationship_line_item import RelationshipLineItem
+        
+        selected_items = self.scene.selectedItems()
+        for item in selected_items:
+            if isinstance(item, RelationshipLineItem):
+                line_id = item.relationship_line.id
+                self.scene.removeItem(item)
+                return line_id
+        return None

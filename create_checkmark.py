@@ -2,9 +2,12 @@ from PIL import Image, ImageDraw
 import os
 
 def create_checkmark():
-    # Create directory if it doesn't exist
-    if not os.path.exists('c:/familytree/resources'):
-        os.makedirs('c:/familytree/resources')
+    # Ensure resources directory exists in the current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    resources_dir = os.path.join(current_dir, 'resources')
+    
+    if not os.path.exists(resources_dir):
+        os.makedirs(resources_dir)
         
     # Create a transparent image
     size = (16, 16)
@@ -19,8 +22,9 @@ def create_checkmark():
     draw.line(points, fill='#4A90E2', width=2)
     
     # Save
-    img.save('c:/familytree/resources/checkmark.png')
-    print("Checkmark image created.")
+    save_path = os.path.join(resources_dir, 'checkmark.png')
+    img.save(save_path)
+    print(f"Checkmark image created at: {save_path}")
 
 if __name__ == "__main__":
     create_checkmark()
